@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A scheduled task for the patient",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "time": { "type": "string", "description": "HH:mm format" },
+        "icon": { "type": "string" },
+        "voiceUrl": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "lastNotified": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "time"]
+    },
+    "FamilyContact": {
+      "title": "FamilyContact",
+      "description": "A family member contact",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["name", "photoUrl"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "App settings",
+      "type": "object",
+      "properties": {
+        "reassuringMessage": { "type": "string" },
+        "caregiverEmail": { "type": "string" }
+      }
+    },
+    "Meeting": {
+      "title": "Meeting",
+      "description": "A scheduled meeting for the patient",
+      "type": "object",
+      "properties": {
+        "personName": { "type": "string" },
+        "personPhotoUrl": { "type": "string" },
+        "time": { "type": "string", "description": "HH:mm format" },
+        "location": { "type": "string" },
+        "status": { "type": "string", "enum": ["not-started", "in-progress", "completed", "missed"] },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "icon": { "type": "string" }
+            }
+          }
+        },
+        "lastNotified": { "type": "string", "format": "date-time" }
+      },
+      "required": ["personName", "time", "location"]
+    },
+    "SafeZone": {
+      "title": "SafeZone",
+      "description": "A predefined safe location",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "radius": { "type": "number", "description": "Radius in meters" }
+      },
+      "required": ["name", "lat", "lng", "radius"]
+    },
+    "UserStatus": {
+      "title": "UserStatus",
+      "description": "Current status of the user",
+      "type": "object",
+      "properties": {
+        "isSafe": { "type": "boolean" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "currentLocationName": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/tasks": { "schema": "Task", "description": "Daily tasks" },
+    "/contacts": { "schema": "FamilyContact", "description": "Family contacts" },
+    "/settings": { "schema": "Settings", "description": "Global settings" },
+    "/meetings": { "schema": "Meeting", "description": "Scheduled meetings" },
+    "/safeZones": { "schema": "SafeZone", "description": "Predefined safe locations" },
+    "/userStatus": { "schema": "UserStatus", "description": "Current status of the user" }
+  }
+}

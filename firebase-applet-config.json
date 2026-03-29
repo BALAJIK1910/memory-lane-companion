@@ -1,0 +1,10 @@
+{
+  "projectId": "memory-reconstruction",
+  "appId": "1:834260618338:web:213ff8e3aa07b6467ed53b",
+  "apiKey": "AIzaSyAUmt1oA2q778lFWkgZA7fVC5xgUp65o-Q",
+  "authDomain": "memory-reconstruction.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "memory-reconstruction.firebasestorage.app",
+  "messagingSenderId": "834260618338",
+  "measurementId": ""
+}

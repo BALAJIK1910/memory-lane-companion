@@ -1,0 +1,5 @@
+{
+  "name": "Memory Lane Companion",
+  "description": "A simple, voice-guided digital companion for dementia patients to help with daily routines and stay connected with family.",
+  "requestFramePermissions": ["microphone", "geolocation"]
+}
