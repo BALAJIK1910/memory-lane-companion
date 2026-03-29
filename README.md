@@ -1,6 +1,3 @@
-<div align="center">
-<img width="800" alt="Memory Lane Companion Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-
 # Memory Lane Companion
 *Your Memory Reconstruction AI Assistant*
 </div>
@@ -107,4 +104,3 @@
 ## 🤝 Contributors
 
 - [BALAJIK1910](https://github.com/BALAJIK1910) - Lead Developer & Architect
-- *Open to community contributions!*
