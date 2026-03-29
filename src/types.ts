@@ -11,6 +11,7 @@ export interface Task {
 export interface FamilyContact {
   id: string;
   name: string;
+  relationship?: string; // e.g. Daughter, Son, Spouse, Caregiver (optional for backward compat)
   photoUrl: string;
   phone: string;
 }
@@ -27,6 +28,7 @@ export interface Meeting {
   id: string;
   personName: string;
   personPhotoUrl: string;
+  date?: string; // YYYY-MM-DD (optional for backward compatibility with legacy meetings)
   time: string; // HH:mm
   location: string;
   lat?: number;

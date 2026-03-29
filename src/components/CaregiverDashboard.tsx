@@ -15,11 +15,12 @@ export function CaregiverDashboard() {
   });
 
   const [newTask, setNewTask] = useState({ title: '', time: '08:00', icon: '💊' });
-  const [newContact, setNewContact] = useState({ name: '', photoUrl: '', phone: '' });
+  const [newContact, setNewContact] = useState({ name: '', relationship: 'Family', photoUrl: '', phone: '' });
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [newMeeting, setNewMeeting] = useState({
     personName: '',
     personPhotoUrl: '',
+    date: new Date().toISOString().split('T')[0], // default to today YYYY-MM-DD
     time: '12:00',
     location: '',
     lat: '' as number | string,
@@ -79,9 +80,12 @@ export function CaregiverDashboard() {
     if (!auth.currentUser) return;
     const unsubscribe = onSnapshot(collection(db, 'meetings'), (snapshot) => {
       const fetchedMeetings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Meeting));
-      // Sort client-side to prevent Firestore from returning empty results 
-      // when some documents are missing the 'time' field or index
-      fetchedMeetings.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      // Sort client-side by date+time combined (fallback '0000-00-00' for legacy meetings without a date)
+      fetchedMeetings.sort((a, b) => {
+        const aKey = `${a.date || '0000-00-00'} ${a.time || '00:00'}`;
+        const bKey = `${b.date || '0000-00-00'} ${b.time || '00:00'}`;
+        return aKey.localeCompare(bKey);
+      });
       setMeetings(fetchedMeetings);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'meetings');
@@ -192,7 +196,7 @@ export function CaregiverDashboard() {
     if (!newContact.name || !newContact.photoUrl) return;
     const id = Math.random().toString(36).substr(2, 9);
     await setDoc(doc(db, 'contacts', id), newContact);
-    setNewContact({ name: '', photoUrl: '', phone: '' });
+    setNewContact({ name: '', relationship: 'Family', photoUrl: '', phone: '' });
   };
 
   const addMeeting = async () => {
@@ -201,6 +205,7 @@ export function CaregiverDashboard() {
     const meetingData: any = {
       personName: newMeeting.personName,
       personPhotoUrl: newMeeting.personPhotoUrl,
+      date: newMeeting.date, // YYYY-MM-DD
       time: newMeeting.time,
       location: newMeeting.location,
       steps: newMeeting.steps,
@@ -217,6 +222,7 @@ export function CaregiverDashboard() {
     setNewMeeting({
       personName: '',
       personPhotoUrl: '',
+      date: new Date().toISOString().split('T')[0], // reset to today
       time: '12:00',
       location: '',
       lat: '',
@@ -422,12 +428,12 @@ export function CaregiverDashboard() {
                     onChange={e => setNewTask({ ...newTask, icon: e.target.value })}
                     className="w-16 p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-400 outline-none text-sm"
                   >
-                    <option>💊</option>
-                    <option>🍎</option>
-                    <option>💧</option>
-                    <option>🚶</option>
-                    <option>🛏️</option>
-                    <option>🚿</option>
+                    <option value="💊">💊</option>
+                    <option value="🍎">🍎</option>
+                    <option value="💧">💧</option>
+                    <option value="🚶">🚶</option>
+                    <option value="🛏️">🛏️</option>
+                    <option value="🚿">🚿</option>
                   </select>
                   <button
                     onClick={addTask}
@@ -479,12 +485,18 @@ export function CaregiverDashboard() {
             </h2>
 
             <div className="space-y-3 mb-6 bg-stone-50 p-4 rounded-xl border border-stone-100 shrink-0">
+              <input
+                type="text"
+                placeholder="Person's Name"
+                value={newMeeting.personName}
+                onChange={e => setNewMeeting({ ...newMeeting, personName: e.target.value })}
+                className="w-full p-2.5 bg-white border border-stone-200 rounded-xl outline-none text-sm"
+              />
               <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="text"
-                  placeholder="Person's Name"
-                  value={newMeeting.personName}
-                  onChange={e => setNewMeeting({ ...newMeeting, personName: e.target.value })}
+                  type="date"
+                  value={newMeeting.date}
+                  onChange={e => setNewMeeting({ ...newMeeting, date: e.target.value })}
                   className="p-2.5 bg-white border border-stone-200 rounded-xl outline-none text-sm"
                 />
                 <input
@@ -577,7 +589,7 @@ export function CaregiverDashboard() {
                       </div>
                       <div>
                         <p className="font-bold text-stone-800 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{meeting.personName}</p>
-                        <p className="text-xs text-stone-500">{meeting.time}</p>
+                        <p className="text-xs text-stone-500">{meeting.date || 'No date'} · {meeting.time}</p>
                       </div>
                     </div>
                     <button
@@ -643,6 +655,24 @@ export function CaregiverDashboard() {
                   onChange={e => setNewContact({ ...newContact, name: e.target.value })}
                   className="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm"
                 />
+                <select
+                  value={newContact.relationship}
+                  onChange={e => setNewContact({ ...newContact, relationship: e.target.value })}
+                  className="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm"
+                >
+                  <option value="Family">Family</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Son">Son</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Caregiver">Caregiver</option>
+                  <option value="Doctor">Doctor</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Phone"
@@ -682,7 +712,12 @@ export function CaregiverDashboard() {
                   />
                   <div className="p-2 bg-white flex-1 flex flex-col justify-center">
                     <p className="font-bold text-stone-800 text-xs truncate" title={contact.name}>{contact.name}</p>
-                    <p className="text-[10px] text-stone-500 truncate" title={contact.phone}>{contact.phone || 'No phone'}</p>
+                    {contact.relationship && (
+                      <span className="inline-block mt-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full w-fit">
+                        {contact.relationship}
+                      </span>
+                    )}
+                    <p className="text-[10px] text-stone-500 truncate mt-0.5" title={contact.phone}>{contact.phone || 'No phone'}</p>
                   </div>
                   <button
                     onClick={() => deleteDoc(doc(db, 'contacts', contact.id))}

@@ -81,7 +81,12 @@ export function PatientInterface() {
       where('status', 'in', ['not-started', 'in-progress'])
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const meetingList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Meeting));
+      const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const meetingList = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Meeting))
+        // Only show today's meetings; meetings without a date are treated as today (backward compat)
+        .filter(m => !m.date || m.date === todayStr)
+        .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       setMeetings(meetingList);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'meetings');
@@ -126,7 +131,11 @@ export function PatientInterface() {
   useEffect(() => {
     const checkMeetingReminders = () => {
       const now = new Date();
+      const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       meetings.forEach(async (meeting) => {
+        // Skip reminder if this meeting is not scheduled for today
+        if (meeting.date && meeting.date !== todayStr) return;
+
         const [hours, minutes] = meeting.time.split(':').map(Number);
         const meetingDate = new Date();
         meetingDate.setHours(hours, minutes, 0, 0);
@@ -291,6 +300,14 @@ export function PatientInterface() {
                     </h3>
                     <div className="flex flex-wrap justify-center md:justify-start gap-6 text-stone-600 mb-8">
                       <div className="flex items-center gap-3 bg-stone-100 py-3 px-6 rounded-2xl">
+                        <CalendarIcon className="w-8 h-8 text-rose-500" />
+                        <span className="text-3xl font-bold">
+                          {upcomingMeeting.date
+                            ? format(new Date(upcomingMeeting.date + 'T00:00:00'), 'MMMM d')
+                            : 'Today'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 bg-stone-100 py-3 px-6 rounded-2xl">
                         <Clock className="w-8 h-8 text-rose-500" />
                         <span className="text-3xl font-bold">At {upcomingMeeting.time}</span>
                       </div>
@@ -392,7 +409,10 @@ export function PatientInterface() {
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6">
-                  <span className="text-white text-3xl font-serif font-bold mb-2">{contact.name}</span>
+                  <span className="text-white text-3xl font-serif font-bold mb-1">{contact.name}</span>
+                  {contact.relationship && (
+                    <span className="text-rose-200 text-lg font-medium mb-2">{contact.relationship}</span>
+                  )}
                   <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md py-2 px-4 rounded-2xl self-start">
                     <Phone className="w-5 h-5 text-white" />
                     <span className="text-white text-lg font-bold">Call Now</span>
