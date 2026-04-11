@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, collection, onSnapshot, query, orderBy, updateDoc, doc, where, handleFirestoreError, OperationType, auth, setDoc } from '../lib/firebase';
+import { caregiverCol, caregiverDoc, onSnapshot, query, orderBy, updateDoc, where, handleFirestoreError, OperationType, setDoc } from '../lib/firebase';
 import { Task, FamilyContact, Settings, Meeting, MeetingStep, SafeZone, UserStatus } from '../types';
 import { Phone, Volume2, CheckCircle2, Heart, Clock, Calendar as CalendarIcon, MapPin, User, ArrowRight, ArrowLeft, Check, AlertTriangle, UserPlus } from 'lucide-react';
 import { differenceInMinutes, parseISO, startOfToday } from 'date-fns';
 import { getDistance } from '../lib/utils';
+import { useUser } from '../contexts/UserContext';
 
 export function PatientInterface() {
+  const { caregiverId } = useUser();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [contacts, setContacts] = useState<FamilyContact[]>([]);
@@ -40,44 +42,44 @@ export function PatientInterface() {
   }, [currentTime]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const q = query(collection(db, 'tasks'), orderBy('time', 'asc'));
+    if (!caregiverId) return;
+    const q = query(caregiverCol(caregiverId, 'tasks'), orderBy('time', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const taskList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
       setTasks(taskList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'tasks');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/tasks`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'contacts'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'contacts'), (snapshot) => {
       const contactList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilyContact));
       setContacts(contactList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'contacts');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/contacts`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'settings', 'global'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverDoc(caregiverId, 'settings', 'global'), (snapshot) => {
       if (snapshot.exists()) {
         setSettings(snapshot.data() as Settings);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/global');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/settings/global`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!caregiverId) return;
     const q = query(
-      collection(db, 'meetings'),
+      caregiverCol(caregiverId, 'meetings'),
       where('status', 'in', ['not-started', 'in-progress'])
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -89,22 +91,22 @@ export function PatientInterface() {
         .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       setMeetings(meetingList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'meetings');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/meetings`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'userStatus', 'current'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverDoc(caregiverId, 'userStatus', 'current'), (snapshot) => {
       if (snapshot.exists()) {
         setUserStatus(snapshot.data() as UserStatus);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'userStatus/current');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/userStatus/current`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   // Handle voice guidance for wandering
   useEffect(() => {
@@ -150,7 +152,7 @@ export function PatientInterface() {
           if (!alreadyNotified) {
             const message = `You have a meeting with ${meeting.personName} at ${meeting.time}. Please get ready.`;
             playVoiceInstruction(message);
-            await updateDoc(doc(db, 'meetings', meeting.id), {
+            await updateDoc(caregiverDoc(caregiverId, 'meetings', meeting.id), {
               lastNotified: now.toISOString()
             });
           }
@@ -167,18 +169,18 @@ export function PatientInterface() {
 
         // Auto-mark as in-progress if they arrived within a reasonable window
         if (isAtMeeting && diff > -120 && diff <= 30 && meeting.status === 'not-started') {
-          await updateDoc(doc(db, 'meetings', meeting.id), { status: 'in-progress' });
+          await updateDoc(caregiverDoc(caregiverId, 'meetings', meeting.id), { status: 'in-progress' });
           playVoiceInstruction("You have arrived at your meeting.");
         } else if (diff < -30 && meeting.status === 'not-started') {
           // Auto-mark as missed if 30 mins past
-          await updateDoc(doc(db, 'meetings', meeting.id), { status: 'missed' });
+          await updateDoc(caregiverDoc(caregiverId, 'meetings', meeting.id), { status: 'missed' });
         }
       });
     };
 
     const interval = setInterval(checkMeetingReminders, 30000); // Check every 30s
     return () => clearInterval(interval);
-  }, [meetings, userStatus]);
+  }, [meetings, userStatus, caregiverId]);
 
   // Check for reminders every minute
   useEffect(() => {
@@ -201,7 +203,7 @@ export function PatientInterface() {
   };
 
   const handleCompleteTask = async (taskId: string) => {
-    await updateDoc(doc(db, 'tasks', taskId), { completed: true });
+    await updateDoc(caregiverDoc(caregiverId, 'tasks', taskId), { completed: true });
     setActiveReminder(null);
   };
 
@@ -225,7 +227,7 @@ export function PatientInterface() {
 
   const completeMeeting = async () => {
     if (activeMeeting) {
-      await updateDoc(doc(db, 'meetings', activeMeeting.id), { status: 'completed' });
+      await updateDoc(caregiverDoc(caregiverId, 'meetings', activeMeeting.id), { status: 'completed' });
       setActiveMeeting(null);
       setCurrentStepIndex(-1);
       playVoiceInstruction("Great job! You are ready for your meeting.");
@@ -515,10 +517,12 @@ export function PatientInterface() {
                   <button
                     onClick={async () => {
                       playVoiceInstruction("I'm glad you are okay. Please be careful.");
-                      if (auth.currentUser) {
-                        await updateDoc(doc(db, 'userStatus', 'current'), { isSafe: true });
-                        await setDoc(doc(db, 'wanderingAlerts', 'active_wandering_alert'), { status: 'resolved' }, { merge: true });
-                      }
+                      await updateDoc(caregiverDoc(caregiverId, 'userStatus', 'current'), { isSafe: true });
+                      await setDoc(
+                        caregiverDoc(caregiverId, 'wanderingAlerts', 'active_wandering_alert'),
+                        { status: 'resolved' },
+                        { merge: true }
+                      );
                     }}
                     className="bg-emerald-500 text-white py-10 rounded-[48px] text-5xl font-bold shadow-2xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-6 active:scale-95"
                   >

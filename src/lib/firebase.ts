@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc, where, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -11,10 +11,101 @@ console.log("Firebase initialized with config:", {
 });
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+export const signOut = () => firebaseSignOut(auth);
 
-export const signIn = () => signInWithPopup(auth, googleProvider);
-export const signOut = () => auth.signOut();
+const INVITE_CODE_LENGTH = 6;
+
+function generateInviteCode() {
+  let buffer = '';
+  while (buffer.length < INVITE_CODE_LENGTH) {
+    buffer += Math.random().toString(36).slice(2);
+  }
+  return buffer.slice(0, INVITE_CODE_LENGTH).toUpperCase();
+}
+
+async function createUniqueInviteCode(maxAttempts = 8) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const code = generateInviteCode();
+    const existing = await getDoc(doc(db, 'inviteCodes', code));
+    if (!existing.exists()) {
+      return code;
+    }
+  }
+
+  throw new Error('Unable to generate a unique invite code. Please try again.');
+}
+
+export async function signInWithEmail(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function registerCaregiver(email: string, password: string, name: string) {
+  const { user } = await createUserWithEmailAndPassword(auth, email, password);
+  const inviteCode = await createUniqueInviteCode();
+  await setDoc(doc(db, 'caregivers', user.uid, 'profile', 'main'), {
+    name,
+    email,
+    inviteCode,
+    createdAt: new Date().toISOString()
+  });
+  await setDoc(doc(db, 'inviteCodes', inviteCode), { caregiverId: user.uid });
+  return { uid: user.uid, inviteCode };
+}
+
+export async function registerPatient(email: string, password: string, name: string, inviteCode: string) {
+  const normalizedCode = inviteCode.trim().toUpperCase();
+  const inviteSnap = await getDoc(doc(db, 'inviteCodes', normalizedCode));
+  if (!inviteSnap.exists()) {
+    throw new Error('Invalid invite code');
+  }
+  const { caregiverId } = inviteSnap.data() as { caregiverId?: string };
+  if (!caregiverId) {
+    throw new Error('Invite code is missing a caregiver link');
+  }
+
+  const { user } = await createUserWithEmailAndPassword(auth, email, password);
+  await setDoc(doc(db, 'patients', user.uid), {
+    name,
+    email,
+    linkedCaregiverId: caregiverId,
+    createdAt: new Date().toISOString()
+  });
+  return { uid: user.uid, caregiverId };
+}
+
+export async function resolveUserRole(uid: string): Promise<{
+  role: 'caregiver' | 'patient';
+  caregiverId: string;
+}> {
+  const caregiverDoc = await getDoc(doc(db, 'caregivers', uid, 'profile', 'main'));
+  if (caregiverDoc.exists()) {
+    return { role: 'caregiver', caregiverId: uid };
+  }
+
+  const patientDoc = await getDoc(doc(db, 'patients', uid));
+  if (!patientDoc.exists()) {
+    throw new Error('User profile not found');
+  }
+
+  const { linkedCaregiverId } = patientDoc.data() as { linkedCaregiverId?: string };
+  if (!linkedCaregiverId) {
+    throw new Error('Patient profile is missing a linked caregiver');
+  }
+
+  return { role: 'patient', caregiverId: linkedCaregiverId };
+}
+
+export function caregiverCol(caregiverId: string, colName: string) {
+  return collection(db, 'caregivers', caregiverId, colName);
+}
+
+export function caregiverDoc(caregiverId: string, colName: string, docId: string) {
+  return doc(db, 'caregivers', caregiverId, colName, docId);
+}
+
+export function caregiverProfileDoc(caregiverId: string) {
+  return doc(db, 'caregivers', caregiverId, 'profile', 'main');
+}
 
 async function testConnection() {
   try {

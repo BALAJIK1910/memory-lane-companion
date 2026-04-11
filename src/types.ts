@@ -73,3 +73,29 @@ export interface WanderingAlert {
   notifiedCaregiver: boolean;
   isSimulated?: boolean;
 }
+
+export interface CaregiverProfile {
+  name: string;
+  email: string;
+  inviteCode: string;
+  createdAt: string;
+}
+
+export interface PatientProfile {
+  name: string;
+  email: string;
+  linkedCaregiverId: string;
+  createdAt: string;
+}
+
+export interface InviteCode {
+  caregiverId: string;
+}
+
+export type UserRole = 'caregiver' | 'patient';
+
+export interface UserContextType {
+  uid: string;
+  role: UserRole;
+  caregiverId: string;
+}

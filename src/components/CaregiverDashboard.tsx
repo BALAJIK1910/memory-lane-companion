@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { db, collection, onSnapshot, setDoc, updateDoc, deleteDoc, doc, query, orderBy, handleFirestoreError, OperationType, auth } from '../lib/firebase';
+import { caregiverCol, caregiverDoc, caregiverProfileDoc, onSnapshot, setDoc, updateDoc, deleteDoc, query, orderBy, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Task, FamilyContact, Settings, Meeting, MeetingStep, SafeZone, UserStatus, WanderingAlert } from '../types';
 import { Activity, Plus, Trash2, Save, UserPlus, Image as ImageIcon, MessageSquare, ArrowLeft, CheckCircle2, XCircle, Calendar, MapPin, ListChecks, AlertCircle, Shield, Navigation, ExternalLink, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import { getDistance } from '../lib/utils';
+import { useUser } from '../contexts/UserContext';
 export function CaregiverDashboard() {
+  const { caregiverId } = useUser();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [contacts, setContacts] = useState<FamilyContact[]>([]);
   const [settings, setSettings] = useState<Settings>({
@@ -33,6 +35,8 @@ export function CaregiverDashboard() {
   const [newSafeZone, setNewSafeZone] = useState({ name: '', lat: 0, lng: 0, radius: 100 });
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [activeAlert, setActiveAlert] = useState<WanderingAlert | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [caregiverName, setCaregiverName] = useState<string | null>(null);
 
 
   const closestSafeZone = userStatus?.lat && userStatus?.lng && safeZones.length > 0
@@ -44,41 +48,55 @@ export function CaregiverDashboard() {
     : null;
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const q = query(collection(db, 'tasks'), orderBy('time', 'asc'));
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverProfileDoc(caregiverId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as { name?: string; inviteCode?: string };
+        setInviteCode(data.inviteCode || null);
+        setCaregiverName(data.name || null);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/profile`);
+    });
+    return () => unsubscribe();
+  }, [caregiverId]);
+
+  useEffect(() => {
+    if (!caregiverId) return;
+    const q = query(caregiverCol(caregiverId, 'tasks'), orderBy('time', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'tasks');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/tasks`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'contacts'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'contacts'), (snapshot) => {
       setContacts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilyContact)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'contacts');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/contacts`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'settings', 'global'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverDoc(caregiverId, 'settings', 'global'), (snapshot) => {
       if (snapshot.exists()) {
         setSettings(snapshot.data() as Settings);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/global');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/settings/global`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'meetings'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'meetings'), (snapshot) => {
       const fetchedMeetings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Meeting));
       // Sort client-side by date+time combined (fallback '0000-00-00' for legacy meetings without a date)
       fetchedMeetings.sort((a, b) => {
@@ -88,36 +106,36 @@ export function CaregiverDashboard() {
       });
       setMeetings(fetchedMeetings);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'meetings');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/meetings`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'safeZones'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'safeZones'), (snapshot) => {
       setSafeZones(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SafeZone)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'safeZones');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/safeZones`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'userStatus', 'current'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverDoc(caregiverId, 'userStatus', 'current'), (snapshot) => {
       if (snapshot.exists()) {
         setUserStatus(snapshot.data() as UserStatus);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'userStatus/current');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/userStatus/current`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'wanderingAlerts', 'active_wandering_alert'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverDoc(caregiverId, 'wanderingAlerts', 'active_wandering_alert'), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as WanderingAlert;
         if (data.status === 'active') {
@@ -145,16 +163,16 @@ export function CaregiverDashboard() {
         setActiveAlert(null);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'wanderingAlerts/active_wandering_alert');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/wanderingAlerts/active_wandering_alert`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   const resolveAlert = async () => {
-    await setDoc(doc(db, 'wanderingAlerts', 'active_wandering_alert'), {
+    await setDoc(caregiverDoc(caregiverId, 'wanderingAlerts', 'active_wandering_alert'), {
       status: 'resolved'
     }, { merge: true });
-    await updateDoc(doc(db, 'userStatus', 'current'), {
+    await updateDoc(caregiverDoc(caregiverId, 'userStatus', 'current'), {
       isSafe: true,
       detailedStatus: 'Safe',
       exitTimestamp: null
@@ -165,12 +183,12 @@ export function CaregiverDashboard() {
   const addSafeZone = async () => {
     if (!newSafeZone.name || !newSafeZone.lat || !newSafeZone.lng) return;
     const id = Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(db, 'safeZones', id), { ...newSafeZone, id });
+    await setDoc(caregiverDoc(caregiverId, 'safeZones', id), { ...newSafeZone, id });
     setNewSafeZone({ name: '', lat: 0, lng: 0, radius: 100 });
   };
 
   const deleteSafeZone = async (id: string) => {
-    await deleteDoc(doc(db, 'safeZones', id));
+    await deleteDoc(caregiverDoc(caregiverId, 'safeZones', id));
   };
 
   const getCurrentLocationForSafeZone = () => {
@@ -188,14 +206,14 @@ export function CaregiverDashboard() {
   const addTask = async () => {
     if (!newTask.title) return;
     const id = Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(db, 'tasks', id), { ...newTask, completed: false });
+    await setDoc(caregiverDoc(caregiverId, 'tasks', id), { ...newTask, completed: false });
     setNewTask({ title: '', time: '08:00', icon: '💊' });
   };
 
   const addContact = async () => {
     if (!newContact.name || !newContact.photoUrl) return;
     const id = Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(db, 'contacts', id), newContact);
+    await setDoc(caregiverDoc(caregiverId, 'contacts', id), newContact);
     setNewContact({ name: '', relationship: 'Family', photoUrl: '', phone: '' });
   };
 
@@ -218,7 +236,7 @@ export function CaregiverDashboard() {
       meetingData.lat = parsedLat;
       meetingData.lng = parsedLng;
     }
-    await setDoc(doc(db, 'meetings', id), meetingData);
+    await setDoc(caregiverDoc(caregiverId, 'meetings', id), meetingData);
     setNewMeeting({
       personName: '',
       personPhotoUrl: '',
@@ -253,12 +271,12 @@ export function CaregiverDashboard() {
   };
 
   const updateSettings = async () => {
-    await setDoc(doc(db, 'settings', 'global'), settings);
+    await setDoc(caregiverDoc(caregiverId, 'settings', 'global'), settings);
   };
 
   const resetTasks = async () => {
     for (const task of tasks) {
-      await updateDoc(doc(db, 'tasks', task.id), { completed: false });
+      await updateDoc(caregiverDoc(caregiverId, 'tasks', task.id), { completed: false });
     }
   };
 
@@ -288,15 +306,15 @@ export function CaregiverDashboard() {
 
     for (const t of defaultTasks) {
       const id = Math.random().toString(36).substr(2, 9);
-      await setDoc(doc(db, 'tasks', id), t);
+      await setDoc(caregiverDoc(caregiverId, 'tasks', id), t);
     }
     for (const c of defaultContacts) {
       const id = Math.random().toString(36).substr(2, 9);
-      await setDoc(doc(db, 'contacts', id), c);
+      await setDoc(caregiverDoc(caregiverId, 'contacts', id), c);
     }
     const meetingId = Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(db, 'meetings', meetingId), defaultMeeting);
-    await setDoc(doc(db, 'settings', 'global'), {
+    await setDoc(caregiverDoc(caregiverId, 'meetings', meetingId), defaultMeeting);
+    await setDoc(caregiverDoc(caregiverId, 'settings', 'global'), {
       reassuringMessage: "You are at home. Everything is okay.",
       caregiverEmail: "balajik3550@gmail.com"
     });
@@ -345,10 +363,19 @@ export function CaregiverDashboard() {
         <div>
           <Link to="/" className="flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-4 transition-colors">
             <ArrowLeft className="w-5 h-5" />
-            Back to Patient View
+            Back to Home
           </Link>
           <h1 className="text-4xl font-serif font-bold text-stone-900">Caregiver Dashboard</h1>
           <p className="text-stone-500">Manage routines and contacts for your loved one.</p>
+          {inviteCode && (
+            <div className="mt-4 inline-flex items-center gap-3 rounded-2xl bg-stone-100 px-4 py-2 border border-stone-200">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-stone-500">Invite Code</span>
+              <span className="font-bold text-stone-800 tracking-[0.35em]">{inviteCode}</span>
+              {caregiverName && (
+                <span className="text-xs text-stone-500">for {caregiverName}</span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-4">
           <button
@@ -370,7 +397,7 @@ export function CaregiverDashboard() {
               const currentLng = userStatus?.lng || -122.4194;
               const now = new Date().toISOString();
 
-              await setDoc(doc(db, 'wanderingAlerts', id), {
+              await setDoc(caregiverDoc(caregiverId, 'wanderingAlerts', id), {
                 id,
                 timestamp: now,
                 exitTimestamp: now,
@@ -381,7 +408,7 @@ export function CaregiverDashboard() {
                 notifiedCaregiver: true,
                 isSimulated: true
               });
-              await updateDoc(doc(db, 'userStatus', 'current'), {
+              await updateDoc(caregiverDoc(caregiverId, 'userStatus', 'current'), {
                 isSafe: false,
                 detailedStatus: 'Outside Safe Location',
                 exitTimestamp: now,
@@ -457,7 +484,7 @@ export function CaregiverDashboard() {
                       </div>
                     </div>
                     <button
-                      onClick={() => deleteDoc(doc(db, 'tasks', task.id))}
+                      onClick={() => deleteDoc(caregiverDoc(caregiverId, 'tasks', task.id))}
                       className="text-stone-300 hover:text-rose-500 transition-colors p-1"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -507,14 +534,14 @@ export function CaregiverDashboard() {
                 />
               </div>
               <div className="relative">
-                 <ImageIcon className="absolute left-2.5 top-2.5 w-4 h-4 text-stone-400" />
-                 <input
-                   type="url"
-                   placeholder="Photo URL (optional)"
-                   value={newMeeting.personPhotoUrl}
-                   onChange={e => setNewMeeting({ ...newMeeting, personPhotoUrl: e.target.value })}
-                   className="w-full p-2.5 pl-8 bg-white border border-stone-200 rounded-xl outline-none text-sm"
-                 />
+                <ImageIcon className="absolute left-2.5 top-2.5 w-4 h-4 text-stone-400" />
+                <input
+                  type="url"
+                  placeholder="Photo URL (optional)"
+                  value={newMeeting.personPhotoUrl}
+                  onChange={e => setNewMeeting({ ...newMeeting, personPhotoUrl: e.target.value })}
+                  className="w-full p-2.5 pl-8 bg-white border border-stone-200 rounded-xl outline-none text-sm"
+                />
               </div>
               <input
                 type="text"
@@ -546,13 +573,13 @@ export function CaregiverDashboard() {
                   type="button"
                   onClick={() => {
                     if (navigator.geolocation) {
-                       navigator.geolocation.getCurrentPosition((position) => {
-                          setNewMeeting(prev => ({
-                             ...prev,
-                             lat: position.coords.latitude.toFixed(6),
-                             lng: position.coords.longitude.toFixed(6)
-                          }));
-                       });
+                      navigator.geolocation.getCurrentPosition((position) => {
+                        setNewMeeting(prev => ({
+                          ...prev,
+                          lat: position.coords.latitude.toFixed(6),
+                          lng: position.coords.longitude.toFixed(6)
+                        }));
+                      });
                     }
                   }}
                   className="bg-white border border-stone-200 text-stone-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-stone-50 transition-colors flex items-center justify-center gap-1 w-full"
@@ -581,11 +608,11 @@ export function CaregiverDashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-stone-200 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
-                         {meeting.personPhotoUrl ? (
-                           <img src={meeting.personPhotoUrl} alt="" className="w-full h-full object-cover" />
-                         ) : (
-                           <span className="text-sm font-bold text-stone-500">{meeting.personName?.charAt(0) || '?'}</span>
-                         )}
+                        {meeting.personPhotoUrl ? (
+                          <img src={meeting.personPhotoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-sm font-bold text-stone-500">{meeting.personName?.charAt(0) || '?'}</span>
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-stone-800 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{meeting.personName}</p>
@@ -593,7 +620,7 @@ export function CaregiverDashboard() {
                       </div>
                     </div>
                     <button
-                      onClick={() => deleteDoc(doc(db, 'meetings', meeting.id))}
+                      onClick={() => deleteDoc(caregiverDoc(caregiverId, 'meetings', meeting.id))}
                       className="text-stone-300 hover:text-rose-500 p-1"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -720,7 +747,7 @@ export function CaregiverDashboard() {
                     <p className="text-[10px] text-stone-500 truncate mt-0.5" title={contact.phone}>{contact.phone || 'No phone'}</p>
                   </div>
                   <button
-                    onClick={() => deleteDoc(doc(db, 'contacts', contact.id))}
+                    onClick={() => deleteDoc(caregiverDoc(caregiverId, 'contacts', contact.id))}
                     className="absolute top-1 right-1 p-1.5 bg-white/90 backdrop-blur-sm rounded-full text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 className="w-3 h-3" />

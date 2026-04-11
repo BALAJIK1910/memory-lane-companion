@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { db, collection, onSnapshot, doc, setDoc, auth, handleFirestoreError, OperationType, getDoc } from '../lib/firebase';
+import { caregiverCol, caregiverDoc, onSnapshot, setDoc, handleFirestoreError, OperationType, getDoc } from '../lib/firebase';
 import { SafeZone, Meeting } from '../types';
 import { getDistance } from '../lib/utils';
+import { useUser } from '../contexts/UserContext';
 
 export function LocationTracker() {
+  const { caregiverId } = useUser();
   const [safeZones, setSafeZones] = useState<SafeZone[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -13,24 +15,24 @@ export function LocationTracker() {
   const [lastGeocodeName, setLastGeocodeName] = useState<string>('');
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'meetings'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'meetings'), (snapshot) => {
       setMeetings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Meeting)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'meetings');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/meetings`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(collection(db, 'safeZones'), (snapshot) => {
+    if (!caregiverId) return;
+    const unsubscribe = onSnapshot(caregiverCol(caregiverId, 'safeZones'), (snapshot) => {
       setSafeZones(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SafeZone)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'safeZones');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/safeZones`);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -50,7 +52,7 @@ export function LocationTracker() {
   }, []);
 
   useEffect(() => {
-    if (!currentLocation || !auth.currentUser) return;
+    if (!currentLocation || !caregiverId) return;
 
     const updateStatus = async () => {
       let outside = true;
@@ -86,7 +88,7 @@ export function LocationTracker() {
       }
 
       // Fetch current status to check exitTimestamp
-      const statusSnap = await getDoc(doc(db, 'userStatus', 'current'));
+      const statusSnap = await getDoc(caregiverDoc(caregiverId, 'userStatus', 'current'));
       const currentStatusData = statusSnap.exists() ? statusSnap.data() : null;
 
       let exitTimestamp = currentStatusData?.exitTimestamp || null;
@@ -115,7 +117,7 @@ export function LocationTracker() {
       let locationName = lastGeocodeName || closest?.name || 'Unknown';
 
       // Check if there's an active simulated alert before updating status
-      const alertSnap = await getDoc(doc(db, 'wanderingAlerts', 'active_wandering_alert'));
+      const alertSnap = await getDoc(caregiverDoc(caregiverId, 'wanderingAlerts', 'active_wandering_alert'));
       const activeAlertData = alertSnap.exists() ? alertSnap.data() : null;
       const activeSimulatedAlert = activeAlertData?.status === 'active' && activeAlertData?.isSimulated;
 
@@ -155,7 +157,7 @@ export function LocationTracker() {
       }
 
       // Update user status
-      await setDoc(doc(db, 'userStatus', 'current'), {
+      await setDoc(caregiverDoc(caregiverId, 'userStatus', 'current'), {
         isSafe: detailedStatus === 'Safe',
         detailedStatus,
         lastUpdated: new Date().toISOString(),
@@ -172,7 +174,7 @@ export function LocationTracker() {
 
         // Only trigger if not already active and notified
         if (!activeAlertData || activeAlertData.status === 'resolved' || !activeAlertData.notifiedCaregiver) {
-          await setDoc(doc(db, 'wanderingAlerts', alertId), {
+          await setDoc(caregiverDoc(caregiverId, 'wanderingAlerts', alertId), {
             id: alertId,
             timestamp: new Date().toISOString(),
             exitTimestamp: exitTimestamp || new Date().toISOString(),
@@ -190,7 +192,7 @@ export function LocationTracker() {
           console.log(`SIMULATED SMS: Track patient's live location: ${trackingLink}`);
         } else {
           // Just update location for active alert
-          await setDoc(doc(db, 'wanderingAlerts', alertId), {
+          await setDoc(caregiverDoc(caregiverId, 'wanderingAlerts', alertId), {
             timestamp: new Date().toISOString(),
             lat: currentLocation.lat,
             lng: currentLocation.lng,
@@ -203,14 +205,14 @@ export function LocationTracker() {
           return;
         }
 
-        await setDoc(doc(db, 'wanderingAlerts', 'active_wandering_alert'), {
+        await setDoc(caregiverDoc(caregiverId, 'wanderingAlerts', 'active_wandering_alert'), {
           status: 'resolved'
         }, { merge: true });
       }
     };
 
     updateStatus();
-  }, [currentLocation, safeZones, meetings]);
+  }, [currentLocation, safeZones, meetings, caregiverId]);
 
   return null; // This component doesn't render anything
 }

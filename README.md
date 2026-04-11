@@ -1,106 +1,175 @@
-# Memory Lane Companion
-*Your Memory Reconstruction AI Assistant*
-</div>
+# 🧠 Memory Lane Companion
 
-## 📖 Overview
+A dementia-care web application that helps patients manage their daily life while keeping caregivers informed and in control — all in real time.
 
-**Memory Lane Companion** is an innovative AI-powered web application designed specifically to assist individuals living with dementia and cognitive decline, while empowering their caregivers. The platform features two customized interfaces:
+---
 
-- **Patient Interface**: A simplified, highly accessible, and tablet-optimized view providing interactive schedules, conversational AI memories, gentle reminders, and location safety.
-- **Caregiver Dashboard**: A comprehensive management hub designed with a modern bento-box UI. It allows caregivers to effortlessly monitor patient status, update daily routines, define geographical "safe zones", and track real-time locations during a wandering event.
+## 📋 Description
+
+Memory Lane Companion connects **patients** and **caregivers** through a shared, role-based interface.
+
+- The **caregiver** sets up tasks, contacts, meetings, and safe zones from a management dashboard.
+- The **patient** sees a simple, large-text interface with voice reminders and one-tap family calling.
+- If the patient wanders outside a safe zone, the caregiver gets an **instant alert** with a live map view.
+
+---
 
 ## ✨ Features
 
-### For Patients
-- **Simplified UI**: Clean, responsive layout with large touch targets and intuitive design catered towards dementia patients.
-- **AI Memory Assistant**: Integrated conversational AI (powered by Google Gemini) to help recall memories, answer contextual questions, and provide cognitive stimulation.
-- **Daily Schedule & Meetings**: View today's itinerary, medication reminders, and automatically transition designated meetings to "in-progress" based on geolocation.
-- **Familiar Contacts**: Quick access to loved ones with photos and contact details.
+- 🔑 **Role-based accounts** — Caregiver and Patient roles linked by a unique 6-character invite code
+- 📋 **Daily routine manager** — Timed task reminders with voice announcements
+- 📅 **Meeting scheduler** — Step-by-step meeting preparation guides for the patient
+- 👨‍👩‍👧 **Family contacts** — Large photo buttons for one-tap calling
+- 🛡️ **Safe zone tracking** — GPS-based zones with configurable radius
+- 🚨 **Wandering alerts** — Real-time caregiver notification when patient leaves a safe zone
+- 📍 **Live tracking map** — Caregiver sees the patient's location on an interactive map
+- 💬 **Reassuring message** — Caregiver can set a calming message shown on the patient's screen
 
-### For Caregivers
-- **Dashboard Hub**: Organize and update the patient's daily routine, meetings, and emergency contacts.
-- **Safe Zone Geofencing**: Define secure geographical boundaries using interactive maps.
-- **Wandering Alerts & Live Tracking**: Immediate caregiver notifications if the patient leaves a designated Safe Zone. Includes a dedicated live tracking interface to ensure swift intervention.
-- **Location-Aware Meetings**: Wandering alerts are intelligently suppressed if the patient is within a 50-meter radius of a scheduled, active meeting location.
+---
 
 ## 🛠️ Tech Stack
 
-- **Frontend Core**: React 19, TypeScript, Vite
-- **Styling & UI**: Tailwind CSS v4, Framer Motion, Lucide React (Icons), Sonner (Toasts)
-- **Maps & Location**: Leaflet, React-Leaflet
-- **Backend & State**: Firebase (Authentication, Firestore Database for real-time syncing)
-- **AI Integration**: Google GenAI SDK (`@google/genai`) - Gemini API
+| Category | Technology |
+|---|---|
+| Frontend | React 19, TypeScript |
+| Styling | Tailwind CSS v4 |
+| Build Tool | Vite 6.2 |
+| Backend / Auth | Firebase 12 (Firestore + Authentication) |
+| Maps | Leaflet + React-Leaflet |
+| Animations | Framer Motion |
+| Icons | Lucide React |
+| Notifications | Sonner (toasts) |
+| Routing | React Router DOM v7 |
 
-## 🚀 Installation Steps
+---
 
-**Prerequisites:** Node.js (v18+) and a Firebase project.
+## ⚙️ Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/BALAJIK1910/memory-lane-companion.git
-   cd memory-lane-companion
-   ```
+### 1. Clone the repository
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+git clone https://github.com/BALAJIK1910/memory-lane-companion.git
+cd memory-lane-companion
+```
 
-3. **Configure Environment Variables:**
-   Create a `.env.local` file in the root directory and add your API keys:
-   ```env
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
-   VITE_FIREBASE_API_KEY=your_firebase_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
-   VITE_FIREBASE_PROJECT_ID=your_firebase_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_message_sender_id
-   VITE_FIREBASE_APP_ID=your_firebase_app_id
-   ```
+### 2. Install dependencies
 
-4. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-   The application will be accessible at `http://localhost:3000`.
+```bash
+npm install
+```
 
-## 💻 Usage Instructions
+### 3. Configure Firebase
 
-1. **Sign in**: Users must authenticate using Google Sign-In via Firebase Auth.
-2. **Patient Mode**: Upon login, the default view is the Patient Interface (`/`). The dashboard will adapt responsively to provide information safely.
-3. **Caregiver Mode**: Click the **Caregiver** settings icon at the top right to access the Caregiver Dashboard (`/caregiver`). From here, you can:
-   - Add new meetings and tasks.
-   - Adjust Geofencing parameters for safe zones.
-   - Monitor the patient status.
-4. **Live Tracking**: When a Wandering Alert triggers, caregivers are directed to `/track/:patientId` to view the patient's real-time movement on a map.
+Edit `firebase-applet-config.json` with your Firebase project credentials:
+
+```json
+{
+  "projectId": "your-project-id",
+  "appId": "your-app-id",
+  "apiKey": "your-api-key",
+  "authDomain": "your-project.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "your-project.firebasestorage.app",
+  "messagingSenderId": "your-sender-id"
+}
+```
+
+### 4. Enable Firebase services
+
+- Go to [Firebase Console](https://console.firebase.google.com) → **Authentication** → **Sign-in method**
+- Enable **Email/Password**
+- Then deploy auth and Firestore rules:
+
+```bash
+npx -y firebase-tools@latest login
+npx -y firebase-tools@latest deploy --only auth,firestore --project your-project-id
+```
+
+### 5. Start the app
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🚀 Usage
+
+### Create a Caregiver Account
+
+1. Open `http://localhost:3000`
+2. Select **Caregiver** → click **Register**
+3. Fill in your name, email, and password → **Create Account**
+4. Note the **invite code** shown at the top of your dashboard (e.g. `MHXTDG`)
+
+### Create a Patient Account
+
+1. Sign out from the caregiver account (top-right button)
+2. Select **Patient** → click **Register**
+3. Fill in the patient's name, email, password, and the **invite code** from above
+4. Click **Create Account** — the patient is now linked to the caregiver ✅
+
+### Sign In Later
+
+Both roles use the **Sign In** tab with email + password. The app automatically shows the correct interface based on your role.
+
+---
 
 ## 📁 Project Structure
 
-```text
-📂 memory-lane-companion
- ┣ 📂 src
- ┃ ┣ 📂 components
- ┃ ┃ ┣ 📜 CaregiverDashboard.tsx  # Admin dashboard & settings
- ┃ ┃ ┣ 📜 LiveTrackingPage.tsx    # Map for wandering alerts
- ┃ ┃ ┣ 📜 LocationTracker.tsx      # GPS & Geofencing background logic
- ┃ ┃ ┗ 📜 PatientInterface.tsx     # Main patient-facing view
- ┃ ┣ 📂 lib
- ┃ ┃ ┗ 📜 firebase.ts             # Firebase Auth & Firestore setup
- ┃ ┣ 📜 App.tsx                   # Main routing map & auth state handling
- ┃ ┣ 📜 index.css                 # Global styling & Tailwind implementation
- ┃ ┣ 📜 main.tsx                  # React Entry point
- ┃ ┗ 📜 types.ts                  # Shared TypeScript interfaces
- ┣ 📜 package.json                # Project dependencies and scripts
- ┣ 📜 vite.config.ts              # Vite configuration
- ┗ 📜 README.md                   # Project documentation
+```
+memory-lane-companion/
+├── src/
+│   ├── components/
+│   │   ├── CaregiverDashboard.tsx   # Caregiver panel
+│   │   ├── PatientInterface.tsx     # Patient UI
+│   │   ├── LocationTracker.tsx      # Background GPS (patient only)
+│   │   ├── LiveTrackingPage.tsx     # Live map for caregivers
+│   │   └── LoginPage.tsx            # Login & registration
+│   ├── contexts/
+│   │   └── UserContext.tsx          # Auth state + role resolution
+│   ├── lib/
+│   │   ├── firebase.ts              # Firebase setup & helpers
+│   │   └── utils.ts                 # Geo utilities
+│   ├── types.ts                     # TypeScript types
+│   ├── App.tsx                      # Role-based routing
+│   └── main.tsx                     # Entry point
+├── firebase.json                    # Firebase CLI config
+├── firestore.rules                  # Database security rules
+├── AUTH_SETUP_GUIDE.md              # Detailed auth & debug guide
+└── README.md                        # This file
 ```
 
-## 🌐 API & Data Flow
+---
 
-- **Firebase Firestore**: We use Firestore to listen to real-time events. Patient configurations, schedules, and active locations are synced synchronously across devices.
-- **Gemini API**: The patient chatbot accesses context (from the schedule and known contacts) passing it via strict system prompts to generate comforting, memory-reconstructing responses.
-- **Browser Geolocation API**: Powers the user position capturing inside `LocationTracker.tsx` simulating real-world patient tracking.
+## 🤝 Contributing
 
-## 🤝 Contributors
+Contributions are welcome!
 
-- [BALAJIK1910](https://github.com/BALAJIK1910) - Lead Developer & Architect
+1. Fork the project
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "feat: describe your change"`
+4. Push: `git push origin feature/your-feature`
+5. Open a **Pull Request**
+
+Please keep code typed (TypeScript strict mode) and styled with Tailwind CSS.
+
+---
+
+## 🐛 Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| `auth/operation-not-allowed` | Enable Email/Password in Firebase Console, then run `firebase deploy --only auth` |
+| `auth/email-already-in-use` | Use Sign In tab instead of Register |
+| `Invalid invite code` | Double-check the 6-character code shown on the Caregiver Dashboard |
+| Profile not found after login | Delete the broken user in Firebase Console → Authentication → Users, then re-register |
+
+For a full debug guide, see [AUTH_SETUP_GUIDE.md](./AUTH_SETUP_GUIDE.md).
+
+
+<div align="center">
+Made with ❤️ for dementia patients and their families
+</div>

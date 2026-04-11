@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { db, doc, onSnapshot, collection, handleFirestoreError, OperationType, auth, setDoc } from '../lib/firebase';
+import { caregiverCol, caregiverDoc, onSnapshot, handleFirestoreError, OperationType, setDoc } from '../lib/firebase';
 import { UserStatus, SafeZone, FamilyContact } from '../types';
 import { Phone, Navigation, ArrowLeft, AlertTriangle, Shield, MapPin, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useUser } from '../contexts/UserContext';
 
 // Fix for default marker icons in Leaflet
 const markerIcon = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
@@ -28,33 +29,33 @@ function MapUpdater({ center }: { center: [number, number] }) {
 }
 
 export function LiveTrackingPage() {
-  const { patientId } = useParams();
+  const { caregiverId } = useUser();
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [safeZones, setSafeZones] = useState<SafeZone[]>([]);
   const [contacts, setContacts] = useState<FamilyContact[]>([]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!caregiverId) return;
 
     // In this app, we only have one patient for now, so we use 'current'
-    const unsubscribeStatus = onSnapshot(doc(db, 'userStatus', 'current'), (snapshot) => {
+    const unsubscribeStatus = onSnapshot(caregiverDoc(caregiverId, 'userStatus', 'current'), (snapshot) => {
       if (snapshot.exists()) {
         setUserStatus(snapshot.data() as UserStatus);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'userStatus/current');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/userStatus/current`);
     });
 
-    const unsubscribeZones = onSnapshot(collection(db, 'safeZones'), (snapshot) => {
+    const unsubscribeZones = onSnapshot(caregiverCol(caregiverId, 'safeZones'), (snapshot) => {
       setSafeZones(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SafeZone)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'safeZones');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/safeZones`);
     });
 
-    const unsubscribeContacts = onSnapshot(collection(db, 'contacts'), (snapshot) => {
+    const unsubscribeContacts = onSnapshot(caregiverCol(caregiverId, 'contacts'), (snapshot) => {
       setContacts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilyContact)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'contacts');
+      handleFirestoreError(error, OperationType.GET, `caregivers/${caregiverId}/contacts`);
     });
 
     return () => {
@@ -62,7 +63,7 @@ export function LiveTrackingPage() {
       unsubscribeZones();
       unsubscribeContacts();
     };
-  }, [auth.currentUser]);
+  }, [caregiverId]);
 
   if (!userStatus) {
     return (
@@ -81,7 +82,7 @@ export function LiveTrackingPage() {
                   lng: -122.4194,
                   locationName: "San Francisco, CA"
                 };
-                await setDoc(doc(db, 'userStatus', 'current'), {
+                await setDoc(caregiverDoc(caregiverId, 'userStatus', 'current'), {
                   isSafe: true,
                   lastUpdated: new Date().toISOString(),
                   currentLocationName: demoLocation.locationName,

@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local documentation files (not for the repo)
+AUTH_SETUP_GUIDE.md
+API_REFERENCE.md
+ARCHITECTURE.md
+CONTRIBUTING.md
+DEV_GUIDE.md
+TROUBLESHOOTING.md
